@@ -3,71 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <title>Expo Admin - Prize Picker</title>
-    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        #wheelCanvas { transition: transform 4s cubic-bezier(0.15, 0.9, 0.2, 1); }
+    </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen p-8">
-    <div class="max-w-xl mx-auto text-center">
-        <h1 class="text-3xl font-bold mb-6">Expo Prize Draw Picker</h1>
-        
-        <button id="drawBtn" class="bg-yellow-500 hover:bg-yellow-600 text-black font-extrabold text-xl py-4 px-8 rounded-full shadow-lg transition transform hover:scale-105 mb-6">
-            🎲 PICK A WINNER
-        </button>
+<body class="bg-gray-900 text-white min-h-screen p-8 flex flex-col items-center">
+    <!-- Header PNG Logo -->
+    <img src="logo.png" alt="Company Logo" class="h-16 object-contain mb-4">
+    <h1 class="text-3xl font-bold mb-6">Expo Prize Draw Wheel</h1>
 
-        <div id="winnerDisplay" class="hidden bg-gray-800 p-6 rounded-lg border border-yellow-500 shadow-2xl transition-all duration-300">
-            <h2 class="text-yellow-400 text-sm font-semibold tracking-wider uppercase mb-2">🎉 Winner Selected! 🎉</h2>
-            <div id="winnerName" class="text-4xl font-bold text-white mb-3"></div>
-            <div id="winnerDetails" class="text-gray-300 text-base space-y-1"></div>
-        </div>
+    <!-- Spinning Wheel Container -->
+    <div class="relative mb-6">
+        <div class="absolute -top-3 left-1/2 -translate-x-1/2 z-10 text-yellow-400 text-3xl">▼</div>
+        <canvas id="wheelCanvas" width="320" height="320" class="rounded-full shadow-2xl border-4 border-yellow-500 bg-gray-800"></canvas>
+    </div>
+
+    <button id="drawBtn" class="bg-yellow-500 hover:bg-yellow-600 text-black font-extrabold text-xl py-3 px-8 rounded-full shadow-lg transition transform hover:scale-105 mb-6">
+        🎰 SPIN WHEEL
+    </button>
+
+    <div id="winnerDisplay" class="hidden bg-gray-800 p-6 rounded-lg border border-yellow-500 text-center max-w-md w-full">
+        <h2 class="text-yellow-400 text-sm font-semibold tracking-wider uppercase mb-1">🎉 Winner Selected! 🎉</h2>
+        <div id="winnerName" class="text-3xl font-bold mb-2"></div>
+        <div id="winnerDetails" class="text-gray-300 text-sm space-y-1"></div>
     </div>
 
     <script>
         const SUPABASE_URL = 'https://kvweqztviovppnuniqpu.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_bCHzdDByUR1IX7RmqpMGqQ_w5ewnov1';
-        
-        // Renamed variable to avoid name clash with window.supabase
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentRotation = 0;
+
+        function drawWheel(names) {
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            const num = names.length;
+            const arc = (2 * Math.PI) / num;
+            const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ec4899', '#8b5cf6', '#ef4444'];
+
+            ctx.clearRect(0, 0, 320, 320);
+            for (let i = 0; i < num; i++) {
+                const angle = i * arc;
+                ctx.beginPath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.moveTo(160, 160);
+                ctx.arc(160, 160, 150, angle, angle + arc);
+                ctx.lineTo(160, 160);
+                ctx.fill();
+
+                ctx.save();
+                ctx.translate(160, 160);
+                ctx.rotate(angle + arc / 2);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 12px sans-serif";
+                ctx.fillText(names[i].substring(0, 12), 60, 4);
+                ctx.restore();
+            }
+        }
 
         document.getElementById('drawBtn').addEventListener('click', async () => {
             const drawBtn = document.getElementById('drawBtn');
+            const winnerDisplay = document.getElementById('winnerDisplay');
+            winnerDisplay.classList.add('hidden');
             drawBtn.disabled = true;
-            drawBtn.textContent = '⏳ Fetching Entries...';
 
-            try {
-                // Fetch all entries from database
-                const { data: leads, error } = await supabaseClient.from('expo_leads').select('*');
+            const { data: leads, error } = await supabaseClient.from('expo_leads').select('*');
+            if (error || !leads || leads.length === 0) {
+                alert('No entries found to spin!');
+                drawBtn.disabled = false;
+                return;
+            }
 
-                if (error) {
-                    alert('Database Error: ' + error.message);
-                    return;
-                }
+            drawWheel(leads.map(l => l.full_name || 'Anon'));
 
-                if (!leads || leads.length === 0) {
-                    alert('No entries found in the database yet! Submit a entry using index.html first.');
-                    return;
-                }
+            const winnerIndex = Math.floor(Math.random() * leads.length);
+            const winner = leads[winnerIndex];
+            const arcDeg = 360 / leads.length;
+            const targetDeg = 360 - (winnerIndex * arcDeg + arcDeg / 2) - 90;
+            currentRotation += 1440 + ((targetDeg - (currentRotation % 360) + 360) % 360);
 
-                // Pick a random attendee
-                const randomIndex = Math.floor(Math.random() * leads.length);
-                const winner = leads[randomIndex];
+            const canvas = document.getElementById('wheelCanvas');
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
 
-                // Display Winner
+            setTimeout(() => {
                 document.getElementById('winnerName').textContent = winner.full_name || 'Anonymous';
                 document.getElementById('winnerDetails').innerHTML = `
                     <p><strong>Company:</strong> ${winner.company || 'N/A'}</p>
                     <p><strong>Email:</strong> ${winner.email || 'N/A'}</p>
                     <p><strong>Phone:</strong> ${winner.phone || 'N/A'}</p>
+                    <p class="mt-2 text-xs text-yellow-400"><strong>Interested in:</strong> ${winner.interests || 'N/A'}</p>
                 `;
-                document.getElementById('winnerDisplay').classList.remove('hidden');
-
-            } catch (err) {
-                alert('Unexpected Error: ' + err.message);
-            } finally {
+                winnerDisplay.classList.remove('hidden');
                 drawBtn.disabled = false;
-                drawBtn.textContent = '🎲 PICK ANOTHER WINNER';
-            }
+            }, 4000);
         });
     </script>
 </body>
