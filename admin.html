@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Expo Admin - Prize Picker</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen p-8">
+    <div class="max-w-xl mx-auto text-center">
+        <h1 class="text-3xl font-bold mb-6">Expo Prize Draw Picker</h1>
+        
+        <button id="drawBtn" class="bg-yellow-500 hover:bg-yellow-600 text-black font-extrabold text-xl py-4 px-8 rounded-full shadow-lg transition transform hover:scale-105 mb-6">
+            🎲 PICK A WINNER
+        </button>
+
+        <div id="winnerDisplay" class="hidden bg-gray-800 p-6 rounded-lg border border-yellow-500 shadow-2xl transition-all duration-300">
+            <h2 class="text-yellow-400 text-sm font-semibold tracking-wider uppercase mb-2">🎉 Winner Selected! 🎉</h2>
+            <div id="winnerName" class="text-4xl font-bold text-white mb-3"></div>
+            <div id="winnerDetails" class="text-gray-300 text-base space-y-1"></div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kvweqztviovppnuniqpu.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_bCHzdDByUR1IX7RmqpMGqQ_w5ewnov1';
+        
+        // Renamed variable to avoid name clash with window.supabase
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        document.getElementById('drawBtn').addEventListener('click', async () => {
+            const drawBtn = document.getElementById('drawBtn');
+            drawBtn.disabled = true;
+            drawBtn.textContent = '⏳ Fetching Entries...';
+
+            try {
+                // Fetch all entries from database
+                const { data: leads, error } = await supabaseClient.from('expo_leads').select('*');
+
+                if (error) {
+                    alert('Database Error: ' + error.message);
+                    return;
+                }
+
+                if (!leads || leads.length === 0) {
+                    alert('No entries found in the database yet! Submit a entry using index.html first.');
+                    return;
+                }
+
+                // Pick a random attendee
+                const randomIndex = Math.floor(Math.random() * leads.length);
+                const winner = leads[randomIndex];
+
+                // Display Winner
+                document.getElementById('winnerName').textContent = winner.full_name || 'Anonymous';
+                document.getElementById('winnerDetails').innerHTML = `
+                    <p><strong>Company:</strong> ${winner.company || 'N/A'}</p>
+                    <p><strong>Email:</strong> ${winner.email || 'N/A'}</p>
+                    <p><strong>Phone:</strong> ${winner.phone || 'N/A'}</p>
+                `;
+                document.getElementById('winnerDisplay').classList.remove('hidden');
+
+            } catch (err) {
+                alert('Unexpected Error: ' + err.message);
+            } finally {
+                drawBtn.disabled = false;
+                drawBtn.textContent = '🎲 PICK ANOTHER WINNER';
+            }
+        });
+    </script>
+</body>
+</html>

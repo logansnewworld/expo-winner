@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expo Lead Capture & Prize Draw</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-md w-full bg-white rounded-xl shadow-md p-6">
+        <h2 class="text-2xl font-bold text-gray-800 text-center mb-2">Welcome to Our Stand!</h2>
+        <p class="text-gray-600 text-sm text-center mb-6">Fill out your details below to connect with us and enter the daily prize draw.</p>
+
+        <form id="leadForm" class="space-y-4">
+            <div>
+                <label for="fullName" class="block text-sm font-medium text-gray-700">Full Name *</label>
+                <input type="text" id="fullName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email Address *</label>
+                <input type="email" id="email" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+                <label for="phone" class="block text-sm font-medium text-gray-700">Phone Number *</label>
+                <input type="tel" id="phone" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+                <label for="company" class="block text-sm font-medium text-gray-700">Company Name</label>
+                <input type="text" id="company" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Products / Services Interested In</label>
+                <div class="space-y-2">
+                    <label class="inline-flex items-center mr-4">
+                        <input type="checkbox" name="interests" value="Product A" class="rounded border-gray-300 text-blue-600 shadow-sm">
+                        <span class="ml-2 text-sm text-gray-600">Product A</span>
+                    </label>
+                    <label class="inline-flex items-center mr-4">
+                        <input type="checkbox" name="interests" value="Product B" class="rounded border-gray-300 text-blue-600 shadow-sm">
+                        <span class="ml-2 text-sm text-gray-600">Product B</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" name="interests" value="Consulting" class="rounded border-gray-300 text-blue-600 shadow-sm">
+                        <span class="ml-2 text-sm text-gray-600">Consulting Services</span>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-200">
+                Submit & Enter Draw
+            </button>
+        </form>
+
+        <div id="successMessage" class="hidden mt-4 p-4 bg-green-100 text-green-700 rounded-md text-center">
+            🎉 Thank you! Your details have been submitted and you are entered into the prize draw.
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://kvweqztviovppnuniqpu.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_bCHzdDByUR1IX7RmqpMGqQ_w5ewnov1';
+        
+        // Renamed variable to avoid name clash
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        document.getElementById('leadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            const selectedInterests = Array.from(document.querySelectorAll('input[name="interests"]:checked'))
+                .map(cb => cb.value);
+
+            const formData = {
+                full_name: document.getElementById('fullName').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                company: document.getElementById('company').value,
+                interests: selectedInterests
+            };
+
+            const { data, error } = await supabaseClient.from('expo_leads').insert([formData]);
+
+            if (error) {
+                alert('Error submitting form: ' + error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit & Enter Draw';
+            } else {
+                document.getElementById('leadForm').reset();
+                document.getElementById('leadForm').classList.add('hidden');
+                document.getElementById('successMessage').classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
