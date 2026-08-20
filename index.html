@@ -20,6 +20,11 @@
             <p class="text-gray-600 text-sm">Fill out your details below to connect with us and enter the daily prize draw.</p>
         </div>
 
+        <!-- On-Screen Duplicate Warning Message Banner -->
+        <div id="duplicateMessage" class="hidden mb-4 p-4 bg-amber-100 border border-amber-300 text-amber-800 rounded-md text-center font-medium">
+            ⚠️ Draw entry already submitted!
+        </div>
+
         <form id="leadForm" class="space-y-4">
             <div>
                 <label for="fullName" class="block text-sm font-medium text-gray-700">Full Name *</label>
@@ -66,27 +71,63 @@
             e.preventDefault();
 
             const submitBtn = document.getElementById('submitBtn');
+            const duplicateMsg = document.getElementById('duplicateMessage');
+            
+            // Hide previous warnings
+            duplicateMsg.classList.add('hidden');
+
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Submitting...';
+            submitBtn.textContent = 'Checking entry...';
 
-            const formData = {
-                full_name: document.getElementById('fullName').value,
-                email: document.getElementById('email').value,
-                phone: document.getElementById('phone').value,
-                company: document.getElementById('company').value,
-                interests: document.getElementById('interests').value
-            };
+            const emailInput = document.getElementById('email').value.trim().toLowerCase();
+            const phoneInput = document.getElementById('phone').value.trim();
 
-            const { data, error } = await supabaseClient.from('expo_leads').insert([formData]);
+            try {
+                // 1. Check if an entry with the same email OR phone already exists
+                const { data: existingEntries, error: checkError } = await supabaseClient
+                    .from('expo_leads')
+                    .select('id')
+                    .or(`email.ilike.${emailInput},phone.eq.${phoneInput}`);
 
-            if (error) {
-                alert('Error submitting form: ' + error.message);
+                if (checkError) {
+                    console.error("Check Error:", checkError);
+                }
+
+                if (existingEntries && existingEntries.length > 0) {
+                    // Duplicate found! Show on-screen banner
+                    duplicateMsg.classList.remove('hidden');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit & Enter Draw';
+                    return;
+                }
+
+                // 2. No duplicate found, proceed to submit
+                submitBtn.textContent = 'Submitting...';
+
+                const formData = {
+                    full_name: document.getElementById('fullName').value.trim(),
+                    email: emailInput,
+                    phone: phoneInput,
+                    company: document.getElementById('company').value.trim(),
+                    interests: document.getElementById('interests').value.trim()
+                };
+
+                const { data, error: insertError } = await supabaseClient.from('expo_leads').insert([formData]);
+
+                if (insertError) {
+                    alert('Error submitting form: ' + insertError.message);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit & Enter Draw';
+                } else {
+                    document.getElementById('leadForm').reset();
+                    document.getElementById('leadForm').classList.add('hidden');
+                    document.getElementById('successMessage').classList.remove('hidden');
+                }
+
+            } catch (err) {
+                alert('An error occurred: ' + err.message);
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Submit & Enter Draw';
-            } else {
-                document.getElementById('leadForm').reset();
-                document.getElementById('leadForm').classList.add('hidden');
-                document.getElementById('successMessage').classList.remove('hidden');
             }
         });
     </script>
